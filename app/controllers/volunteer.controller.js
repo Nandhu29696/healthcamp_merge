@@ -71,8 +71,8 @@ const addVolunteerDetls = async (req, res) => {
                     roleId: roleData.id,
                     password: bcrypt.hashSync(createPassword, 8),
                     password2: bcrypt.hashSync(createPassword, 8),
-                    organizer_Id: 2,
-                    organizationDetId: 2,
+                    organizer_Id: 1,
+                    organizationDetId: 1,
                     isActive: true,
                     isDeleted: false
                 }
@@ -110,7 +110,7 @@ const addVolunteerDetls = async (req, res) => {
                                     }
                                 }).then(volunteer => {
                                     camp.addVolunteerDetls(volunteer).then(() => {
-                                        const smsResult = sendVolunteerSMS(volunteer.contactNo, volunteer.volunteerName, camp.campDate, camp.city)
+                                        // const smsResult = sendVolunteerSMS(volunteer.contactNo, volunteer.volunteerName, camp.campDate, camp.city)
 
                                         res.json({
                                             status: "SUCCESS",
@@ -122,7 +122,7 @@ const addVolunteerDetls = async (req, res) => {
                         })
                     }
                     else {
-                        const smsResult = sendVolunteerSMS(volunteerDet.contactNo, volunteerDet.volunteerName, '', '')
+                        // const smsResult = sendVolunteerSMS(volunteerDet.contactNo, volunteerDet.volunteerName, '', '')
 
                         res.json({
                             status: "SUCCESS",

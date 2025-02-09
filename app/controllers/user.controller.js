@@ -9,6 +9,7 @@ const Role = db.role;
 const OrgnDB = db.organizationTypes;
 
 const CampDet = db.campPlanning;
+const PatientDB = db.patientDetls;
 const Op = db.Sequelize.Op;
 
 var validator = require("node-email-validation");
@@ -18,7 +19,7 @@ const { assignCamptoUser } = require('./campPlan.controller');
 const adduserDetls = async (req, res) => {
 
     try {
-        if (req.body.fullName == "" || req.body.email == "" || req.body.contactNO == "") {
+        if (req.body.fullName == "" || req.body.email == "" || req.body.contactNo == "") {
             res.status(400).send({
                 status: "FAILED",
                 message: "Empty Input fields!"
@@ -49,7 +50,7 @@ const adduserDetls = async (req, res) => {
                 }
 
                 let zipcode = Utils.preprocessZipcode(req.body.zipCode)
-                
+
                 let organizerId = Utils.preprocessInteger(req.body.organizerId)
                 let organizationDetId = Utils.preprocessInteger(req.body.organizationDetId)
 
@@ -59,7 +60,7 @@ const adduserDetls = async (req, res) => {
                 const prefix = 'NHU'
                 const serialNumber = await getNextSerialNumber(prefix);
 
-                
+
                 userDB.create({
                     userID: serialNumber,
                     fullName: req.body.fullName,
@@ -103,17 +104,66 @@ const adduserDetls = async (req, res) => {
 
 
 const updateuserDetls = async (req, res) => {
-    let id = req.params.id
+    const id = req.params.id;
+
+    // Validate and format dateOfBirth
+    let dateOfBirth = req.body.dateOfBirth;
+    if (!dateOfBirth || !Utils.isValidDate(dateOfBirth)) {
+        dateOfBirth = null;
+    }
+
+    // Preprocess zipCode
+    const zipCode = Utils.preprocessZipcode(req.body.zipCode);
 
     try {
-        userDB.update(req.body, { where: { id: id } })
-            .then(user => {
+        // Prepare updated fields
+        const updatedFields = {
+            ...req.body, // Other fields from request body
+            dateOfBirth: dateOfBirth, // Validated dateOfBirth
+            zipCode: zipCode, // Processed zipCode
+        };
 
-                res.json({
-                    status: "SUCCESS",
-                    message: "Updated successfully!",
-                });
+        // Ensure Sequelize update call includes the `where` clause
+        const [updatedRows] = await userDB.update(updatedFields, {
+            where: { id: id }, // Specify the row to update
+        });
+
+        if (updatedRows === 0) {
+            // No rows were updated
+            return res.status(404).json({
+                status: "FAILED",
+                message: "User not found or no changes were made.",
             });
+        }
+
+        // Success response
+        res.json({
+            status: "SUCCESS",
+            message: "User updated successfully!",
+        });
+    } catch (error) {
+        console.error("Error updating user:", error.message);
+        res.status(500).json({
+            status: "FAILED",
+            message: "Error updating user: " + error.message,
+        });
+    }
+};
+
+const getOneUserData = async (req, res) => {
+    let id = req.params.id
+    try {
+        let userDet = await userDB.findOne({
+            where: {
+                id: id
+            },
+            include: [{
+                model: Role,
+                as: 'roles',
+                attributes: ['id', 'name'],
+            }]
+        })
+        res.status(200).send(userDet)
     } catch (error) {
         res.json({
             status: "FAILED",
@@ -127,7 +177,7 @@ const getAllUsers = (req, res) => {
         where: {
             isDeleted: false
         },
-        order: [['id', 'ASC']],
+        order: [['id', 'DESC']],
         include: [{
             model: Role,
             as: 'roles',
@@ -278,13 +328,65 @@ const getUserCountsMonthbased = async (req, res) => {
     }
 }
 
+const getCampPatientTotalCounts = async (req, res) => {
+    try {
+        const campData = await db.campPlanning.findAll({
+            attributes: [
+                [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('campDate')), 'month'], // Group by truncated month
+                'campName', // Include camp name
+                [Sequelize.fn('COUNT', Sequelize.col('patientDetls->patients_camps.patientId')), 'patientCount'],
+            ],
+            include: [
+                {
+                    model: db.patientDetls,
+                    through: { attributes: [] }, // Exclude fields from the junction table
+                    attributes: [], // Exclude patient fields
+                },
+            ],
+            group: [
+                Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('campDate')), // Month grouping
+                'campPlanningDet.campName', // Group by camp name
+                'campPlanningDet.id', // Group by the primary key of campPlanning
+            ],
+            order: [[Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('campDate')), 'DESC']],
+        });
+
+        // Format the data into the desired structure
+        const groupedData = campData.reduce((acc, camp) => {
+            const month = camp.dataValues.month.toLocaleString('default', { month: 'long' }); // Convert to month name
+            const campName = camp.campName;
+            const patientCount = parseInt(camp.dataValues.patientCount, 10);
+
+            if (!acc[month]) {
+                acc[month] = [];
+            }
+
+            acc[month].push({ name: campName, patientCount });
+            return acc;
+        }, {});
+
+        // Transform grouped data into the final structure
+        const result = Object.entries(groupedData).map(([month, camps]) => ({
+            month,
+            camps,
+        }));
+
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
+
 
 module.exports = {
-    adduserDetls,
+    adduserDetls, getOneUserData,
     updateuserDetls,
     getAllUsers,
     deleteCampDet,
     getAllRoles, getVolunteerRoles, getRoleUsersCount,
-    getUserCountsMonthbased
+    getUserCountsMonthbased, getCampPatientTotalCounts
 }
 

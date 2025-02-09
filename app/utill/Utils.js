@@ -48,10 +48,10 @@ class Utils {
         return !isNaN(Date.parse(date))
     }
     static preprocessZipcode(zipcode) {
-        if (zipcode === '' || isNaN(Number(zipcode))) {
-            return null
+        if (!/^\d+$/.test(zipcode)) {
+            return null; // Invalid input
         }
-        return BigInt(zipcode)
+        return parseInt(zipcode, 10);
     }
     static preprocessInteger(input) {
         if (input === '' || isNaN(Number(input))) {

@@ -13,6 +13,7 @@ const readXlsxFile = require("read-excel-file/node");
 const fs = require("fs");
 const csv = require("fast-csv");
 const Utils = require('../utill/Utils');
+
 const addCampDetails = async (req, res) => {
     if (!req.body.campName || !req.body.campDate
         || !req.body.startTime || !req.body.endTime || !req.body.street
@@ -65,11 +66,12 @@ const addCampDetails = async (req, res) => {
         }
     }
 }
+
 const getAllCampDetails = async (req, res) => {
     try {
         let campdet = await CampPlanDet.findAll({
             where: { activeStatus: true },
-            order: [['createdAt', 'ASC']],
+            order: [['createdAt', 'DESC']],
             include: [{
                 model: UserData,
                 as: 'users',
@@ -89,11 +91,12 @@ const getAllCampDetails = async (req, res) => {
         });
     }
 }
+
 const getAllCampNames = async (req, res) => {
     try {
         let campdet = await CampPlanDet.findAll({
             where: { activeStatus: true },
-            order: [['createdAt', 'ASC']],
+            order: [['createdAt', 'DESC']],
             attributes: ['id', 'campID', 'campName']
         })
         res.status(200).send(campdet)
@@ -104,6 +107,7 @@ const getAllCampNames = async (req, res) => {
         });
     }
 }
+
 const getOneCampName = async (req, res) => {
     let id = req.params.id
     try {
@@ -123,6 +127,7 @@ const getOneCampName = async (req, res) => {
         });
     }
 }
+
 const getOneCampDet = async (req, res) => {
     let id = req.params.id
     try {
@@ -155,7 +160,7 @@ const getOneCampDet = async (req, res) => {
                 model: patientDB,
                 as: 'patientDetls',
                 where: { activeStatus: true },
-                order: [['id', 'ASC']],
+                order: [['id', 'DESC']],
                 include: [{
                     model: UserData,
                     as: 'users',
@@ -166,7 +171,7 @@ const getOneCampDet = async (req, res) => {
                         attributes: ['id', 'name']
                     }]
                 }]
-            }]
+            }] 
         })
         res.json({
             status: "SUCCESS",
@@ -411,7 +416,7 @@ const generateCompleteReport = async (req, res) => {
                     attributes: ['volunteerID', 'volunteerName', 'dateOfBirth'],
                 },
             ],
-            order: [['campDate', 'ASC']],
+            order: [['campDate', 'DESC']],
         });
         // Create a new Excel workbook and worksheet
         const workbook = new ExcelJS.Workbook();
